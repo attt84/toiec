@@ -24,19 +24,25 @@ TOEICの学習に役立つニュース記事と語彙学習アプリケーショ
 GOOGLE_API_KEY=your_api_key_here
 ```
 
-## インストール方法
+## ローカルでの実行方法
 
-1. 依存関係をインストール
+1. リポジトリをクローン
+```bash
+git clone [repository-url]
+cd toeic-vocabulary-app
+```
+
+2. 依存関係をインストール
 ```bash
 pip install -r requirements.txt
 ```
 
-2. アプリケーションを実行
+3. アプリケーションを実行
 ```bash
 python app.py
 ```
 
-3. ブラウザで http://localhost:8080 にアクセス
+4. ブラウザで http://localhost:8080 にアクセス
 
 ## デプロイ
 

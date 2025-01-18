@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('index') }}">ホーム</a></li>
+                <li class="breadcrumb-item active">{{ article.title_en }}</li>
+            </ol>
+        </nav>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <span class="badge bg-primary">{{ article.category }}</span>
+                <small class="text-muted float-end">{{ article.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+            <div class="card-body">
+                <h1 class="card-title h2">{{ article.title_en }}</h1>
+                <h2 class="card-subtitle h4 mb-4 text-muted">{{ article.title_ja }}</h2>
+                
+                <div class="article-content mb-4">
+                    <div class="english-content" style="font-size: 1.2rem; line-height: 1.8;">
+                        {{ article.content_en|nl2br }}
+                    </div>
+                    <hr>
+                    <div class="japanese-content text-muted">
+                        {{ article.content_ja|nl2br }}
+                    </div>
+                </div>
+
+                <div id="translation-popup" class="alert alert-info" style="display: none; position: fixed; bottom: 20px; right: 20px; max-width: 300px;">
+                    <span id="translation-text"></span>
+                    <button type="button" class="btn-close float-end" onclick="hideTranslation()"></button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title h5 mb-0">重要単語（{{ article.vocabulary|length }}語）</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>単語</th>
+                                <th>意味</th>
+                                <th>品詞</th>
+                                <th>レベル</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for word in article.vocabulary %}
+                            <tr>
+                                <td>
+                                    <strong>{{ word.word }}</strong>
+                                    <div class="text-muted small">{{ word.example }}</div>
+                                </td>
+                                <td>{{ word.meaning }}</td>
+                                <td><span class="badge bg-secondary">{{ word.part_of_speech }}</span></td>
+                                <td><span class="badge bg-info">{{ word.level }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let translationTimeout;
+
+function showTranslation(text) {
+    const popup = document.getElementById('translation-popup');
+    const translationText = document.getElementById('translation-text');
+    
+    // Clear any existing timeout
+    if (translationTimeout) {
+        clearTimeout(translationTimeout);
+    }
+    
+    // Show loading state
+    popup.style.display = 'block';
+    translationText.textContent = '翻訳中...';
+    
+    // Call translation API
+    fetch('{{ url_for("translate_text") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: text })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            translationText.textContent = 'エラー: ' + data.error;
+        } else {
+            translationText.textContent = data.translation;
+        }
+        
+        // Auto-hide after 3 seconds
+        translationTimeout = setTimeout(() => {
+            hideTranslation();
+        }, 3000);
+    })
+    .catch(error => {
+        translationText.textContent = 'エラーが発生しました';
+        console.error('Translation error:', error);
+    });
+}
+
+function hideTranslation() {
+    const popup = document.getElementById('translation-popup');
+    popup.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const englishContent = document.querySelector('.english-content');
+    
+    englishContent.addEventListener('mouseup', function() {
+        const selectedText = window.getSelection().toString().trim();
+        if (selectedText) {
+            showTranslation(selectedText);
+        }
+    });
+});
+</script>
+{% endblock %}

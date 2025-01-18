@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">新しい記事を追加</h1>
+
+    <form method="POST" id="articleForm">
+        <div class="mb-3">
+            <label for="category" class="form-label">カテゴリー</label>
+            <select class="form-select" id="category" name="category" required>
+                <option value="IT">IT</option>
+                <option value="Economics">経済</option>
+                <option value="Politics">政治</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="title_en" class="form-label">タイトル（英語）</label>
+            <input type="text" class="form-control" id="title_en" name="title_en" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="title_ja" class="form-label">タイトル（日本語）</label>
+            <input type="text" class="form-control" id="title_ja" name="title_ja" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="content_en" class="form-label">本文（英語）</label>
+            <textarea class="form-control" id="content_en" name="content_en" rows="5" required></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="content_ja" class="form-label">本文（日本語）</label>
+            <textarea class="form-control" id="content_ja" name="content_ja" rows="5" required></textarea>
+        </div>
+
+        <h3 class="mt-4 mb-3">単語リスト</h3>
+        <div id="wordsList">
+            <div class="word-entry border p-3 mb-3">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">英単語</label>
+                            <input type="text" class="form-control" name="word_en[]">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">日本語訳</label>
+                            <input type="text" class="form-control" name="word_ja[]">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">例文</label>
+                            <input type="text" class="form-control" name="word_example[]">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary mb-3" onclick="addWordEntry()">単語を追加</button>
+
+        <div>
+            <button type="submit" class="btn btn-primary">記事を保存</button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">キャンセル</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function addWordEntry() {
+    const template = `
+        <div class="word-entry border p-3 mb-3">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">英単語</label>
+                        <input type="text" class="form-control" name="word_en[]">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">日本語訳</label>
+                        <input type="text" class="form-control" name="word_ja[]">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label">例文</label>
+                        <input type="text" class="form-control" name="word_example[]">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">削除</button>
+        </div>
+    `;
+    document.getElementById('wordsList').insertAdjacentHTML('beforeend', template);
+}
+</script>
+{% endblock %}
