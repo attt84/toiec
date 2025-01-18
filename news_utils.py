@@ -1,227 +1,185 @@
-import google.generativeai as genai
-from datetime import datetime
 import os
-from dotenv import load_dotenv
-import json
 import requests
 from bs4 import BeautifulSoup
-import re
+import google.generativeai as genai
+from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
+
+# Configure Gemini
 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
-def search_web_articles(category):
-    """Search for articles using web search"""
-    try:
-        # Define search queries for each category
-        category_queries = {
-            'IT': 'latest technology news artificial intelligence',
-            'Economics': 'latest business economics news market',
-            'Politics': 'latest international politics news'
-        }
-        
-        # Get search query
-        query = category_queries.get(category, 'latest technology news')
-        
-        # Use requests to get Google search results
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        # Try different news sources
-        news_sites = [
-            'https://techcrunch.com',
-            'https://www.theverge.com',
-            'https://www.bbc.com/news',
-            'https://www.reuters.com',
-            'https://apnews.com'
-        ]
-        
-        for site in news_sites:
-            try:
-                response = requests.get(site, headers=headers, timeout=5)
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    
-                    # Remove unwanted elements
-                    for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', '.ad', '.advertisement', '.social-share']):
-                        if element:
-                            element.decompose()
-                    
-                    # Find article content
-                    article = None
-                    
-                    # Try different article selectors
-                    for selector in ['article', '.article', '.post', '.story', 'main', '.main-content']:
-                        articles = soup.select(selector)
-                        if articles:
-                            article = articles[0]
-                            break
-                    
-                    if article:
-                        # Extract title
-                        title = None
-                        for title_tag in ['h1', 'h2', '.title', '.article-title']:
-                            title_elem = article.select_one(title_tag)
-                            if title_elem:
-                                title = title_elem.get_text().strip()
-                                break
-                        
-                        # Extract content
-                        content_parts = []
-                        
-                        # Try to get article body
-                        body_selectors = [
-                            '.article-body',
-                            '.story-body',
-                            '.post-content',
-                            '.content',
-                            'article p',
-                            '.article p',
-                            '.story p'
-                        ]
-                        
-                        for selector in body_selectors:
-                            paragraphs = article.select(selector)
-                            if paragraphs:
-                                for p in paragraphs:
-                                    text = p.get_text().strip()
-                                    if len(text.split()) > 10:  # Only include substantial paragraphs
-                                        content_parts.append(text)
-                                break
-                        
-                        # If no content found through selectors, try getting all paragraphs
-                        if not content_parts:
-                            paragraphs = article.find_all('p')
-                            for p in paragraphs:
-                                text = p.get_text().strip()
-                                if len(text.split()) > 10:
-                                    content_parts.append(text)
-                        
-                        # Combine content
-                        if title and content_parts:
-                            content = ' '.join(content_parts)
-                            content = clean_text(content)
-                            
-                            # Ensure appropriate content length (200-350 words)
-                            word_count = len(content.split())
-                            if 200 <= word_count <= 350:
-                                return {
-                                    'title': clean_text(title),
-                                    'content': content
-                                }
-                            elif word_count > 350:
-                                words = content.split()[:350]
-                                content = ' '.join(words)
-                                # Add the rest of the current sentence
-                                if not content.endswith('.'):
-                                    remaining = ' '.join(words[350:])
-                                    next_period = remaining.find('.')
-                                    if next_period != -1:
-                                        content += remaining[:next_period + 1]
-                                return {
-                                    'title': clean_text(title),
-                                    'content': content
-                                }
-            
-            except Exception as e:
-                print(f"Error fetching from {site}: {e}")
-                continue
-        
-        return None
-        
-    except Exception as e:
-        print(f"Error in web search: {e}")
-        return None
+def get_news_prompt(category):
+    """Get category-specific prompt for news generation"""
+    prompts = {
+        'IT': """
+        Create a technology news article about one of these trending topics:
+        - Artificial Intelligence and Machine Learning
+        - Cloud Computing and Digital Transformation
+        - Cybersecurity and Privacy
+        - Mobile Technology and 5G
+        - Internet of Things (IoT)
 
-def clean_text(text):
-    """Clean and format text content"""
-    # Remove extra whitespace
-    text = ' '.join(text.split())
-    # Remove URLs
-    text = re.sub(r'http\S+|www.\S+', '', text)
-    # Remove special characters
-    text = re.sub(r'[^\w\s.,!?-]', ' ', text)
-    # Clean up spaces
-    text = ' '.join(text.split())
-    return text
+        Requirements:
+        1. Use TOEIC level vocabulary (400-800)
+        2. Length: 200-350 words
+        3. Include technical terms but explain them clearly
+        4. Focus on business impact and practical applications
+        """,
+        
+        'Business': """
+        Create a business news article about one of these topics:
+        - Global Market Trends
+        - Corporate Strategy and Innovation
+        - International Trade
+        - Economic Policy
+        - Business Leadership
 
-def translate_and_extract_vocabulary(title, content):
-    """Translate text and extract vocabulary using Gemini"""
+        Requirements:
+        1. Use TOEIC level vocabulary (400-800)
+        2. Length: 200-350 words
+        3. Include business terminology but keep it accessible
+        4. Focus on real-world business implications
+        """,
+        
+        'Science': """
+        Create a science news article about one of these topics:
+        - Medical Research and Healthcare
+        - Environmental Science and Climate
+        - Space Exploration
+        - Biotechnology
+        - Scientific Discoveries
+
+        Requirements:
+        1. Use TOEIC level vocabulary (400-800)
+        2. Length: 200-350 words
+        3. Explain scientific concepts in simple terms
+        4. Focus on practical applications and societal impact
+        """
+    }
+    return prompts.get(category, prompts['IT'])
+
+def get_vocabulary_prompt(text):
+    """Get prompt for vocabulary extraction"""
+    return f"""
+    Extract 10 important TOEIC vocabulary words from this text:
+    {text}
+
+    For each word, provide:
+    1. The word itself
+    2. Its meaning in Japanese
+    3. Part of speech (noun, verb, adjective, etc.)
+    4. TOEIC level (400-600, 600-800, 800+)
+    5. Example sentence from the text or a similar context
+
+    Format the output as a JSON array with these keys:
+    [
+        {{
+            "word": "example",
+            "meaning": "例",
+            "part_of_speech": "noun",
+            "level": "400-600",
+            "example": "This is an example sentence."
+        }},
+        ...
+    ]
+
+    Requirements:
+    1. Choose words that are commonly used in TOEIC
+    2. Provide natural Japanese translations
+    3. Make sure example sentences are clear and relevant
+    4. Include a mix of different parts of speech
+    5. Focus on business, technology, and academic vocabulary
+    """
+
+def process_news_article(category):
+    """Generate a news article with vocabulary"""
     try:
         model = genai.GenerativeModel('gemini-pro')
         
-        prompt = f"""
-        Translate this English article and extract TOEIC vocabulary:
-
-        Title: {title}
-        Content: {content}
-
-        Format the response as JSON:
-        {{
-            "title_ja": "Japanese title",
-            "content_ja": "Japanese content",
-            "vocabulary": [
-                {{
-                    "word": "English word",
-                    "meaning": "Japanese meaning",
-                    "example": "Example sentence from the article",
-                    "part_of_speech": "品詞 (例: 動詞、名詞、形容詞)",
-                    "level": "TOEIC level (例: 400-600, 600-800, 800+)"
-                }}
-            ]
-        }}
-
-        Requirements:
-        1. Natural Japanese translation
-        2. Extract 10 TOEIC-level vocabulary words
-        3. Use actual sentences from the article as examples
-        4. Focus on business and technical vocabulary
-        5. Include a mix of different difficulty levels
-        6. Add part of speech for each word
-        """
-
-        response = model.generate_content(prompt)
-        if not response or not response.text:
+        # Generate English article
+        news_prompt = get_news_prompt(category)
+        news_response = model.generate_content(news_prompt)
+        if not news_response or not news_response.text:
             return None
-
-        # Parse the response
-        response_text = response.text.strip()
-        response_text = response_text.replace('```json', '').replace('```', '').strip()
+            
+        content_en = news_response.text.strip()
         
+        # Generate title based on content
+        title_prompt = f"""
+        Create a concise and engaging title for this article:
+        {content_en}
+        
+        Requirements:
+        1. Maximum 10 words
+        2. Capture the main point
+        3. Use active voice
+        4. Include a key term if relevant
+        """
+        
+        title_response = model.generate_content(title_prompt)
+        if not title_response or not title_response.text:
+            return None
+            
+        title_en = title_response.text.strip()
+        
+        # Translate title and content to Japanese
+        translate_prompt = f"""
+        Translate this English article to natural Japanese:
+        
+        Title: {title_en}
+        
+        Content:
+        {content_en}
+        
+        Requirements:
+        1. Keep the translation natural and fluid
+        2. Maintain the technical accuracy
+        3. Use appropriate Japanese business/technical terms
+        4. Format the output as:
+        Title: [Japanese title]
+        
+        Content:
+        [Japanese content]
+        """
+        
+        translate_response = model.generate_content(translate_prompt)
+        if not translate_response or not translate_response.text:
+            return None
+            
+        translation = translate_response.text.strip()
+        
+        # Extract title and content from translation
+        translation_parts = translation.split('\n\n', 1)
+        if len(translation_parts) != 2:
+            return None
+            
+        title_ja = translation_parts[0].replace('Title:', '').strip()
+        content_ja = translation_parts[1].replace('Content:', '').strip()
+        
+        # Extract vocabulary
+        vocab_prompt = get_vocabulary_prompt(content_en)
+        vocab_response = model.generate_content(vocab_prompt)
+        if not vocab_response or not vocab_response.text:
+            return None
+            
+        # Parse vocabulary JSON
+        import json
         try:
-            return json.loads(response_text)
-        except json.JSONDecodeError as e:
-            print(f"Error parsing translation JSON: {e}")
-            return None
-
-    except Exception as e:
-        print(f"Error in translation: {e}")
-        return None
-
-def process_news_article(category):
-    """Process a news article: search, translate, and extract vocabulary"""
-    try:
-        # Search for article
-        article = search_web_articles(category)
-        if not article:
-            return None
-
-        # Translate and extract vocabulary
-        result = translate_and_extract_vocabulary(article['title'], article['content'])
-        if not result:
-            return None
-
-        # Combine all information
+            vocabulary = json.loads(vocab_response.text)
+        except json.JSONDecodeError:
+            vocabulary = []
+        
         return {
             'category': category,
-            'title_en': article['title'],
-            'content_en': article['content'],
-            'title_ja': result['title_ja'],
-            'content_ja': result['content_ja'],
-            'vocabulary': result['vocabulary']
+            'title_en': title_en,
+            'content_en': content_en,
+            'title_ja': title_ja,
+            'content_ja': content_ja,
+            'vocabulary': vocabulary
         }
-
+        
     except Exception as e:
-        print(f"Error processing article: {e}")
+        print(f"Error in process_news_article: {e}")
         return None
