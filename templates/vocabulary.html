@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">ホーム</a></li>
+            <li class="breadcrumb-item active" aria-current="page">単語一覧</li>
+        </ol>
+    </nav>
+
+    <h1 class="mb-4">単語一覧</h1>
+
+    <div class="row">
+        {% for word in words %}
+        <div class="col-md-4 mb-3">
+            <div class="card {% if word.learned %}bg-light{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ word.english }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">{{ word.japanese }}</h6>
+                    {% if word.example %}
+                    <p class="card-text"><small>例文: {{ word.example }}</small></p>
+                    {% endif %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{{ url_for('toggle_learned', word_id=word.id) }}" 
+                           class="btn btn-sm {% if word.learned %}btn-success{% else %}btn-outline-success{% endif %}">
+                            {% if word.learned %}覚えた✓{% else %}まだ{% endif %}
+                        </a>
+                        <a href="{{ url_for('article', article_id=word.article_id) }}" 
+                           class="btn btn-sm btn-link">元の記事</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not words %}
+    <div class="text-center mt-5">
+        <p>単語がまだ登録されていません。</p>
+        <a href="{{ url_for('add_article') }}" class="btn btn-primary">記事を追加する</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

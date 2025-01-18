@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">AI記事生成</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('generate_article') }}" method="post" class="mb-3">
+                    <div class="form-group">
+                        <label for="category">カテゴリー選択</label>
+                        <select name="category" id="category" class="form-select">
+                            <option value="IT">IT・テクノロジー</option>
+                            <option value="Business">ビジネス・経済</option>
+                            <option value="Science">科学・医療</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">記事を生成</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4">最新の記事</h2>
+        {% if articles %}
+            <div class="row">
+            {% for article in articles %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <span class="badge bg-primary">{{ article.category }}</span>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ article.title_en }}</h5>
+                            <p class="card-text text-muted">{{ article.title_ja }}</p>
+                            <a href="{{ url_for('article', id=article.id) }}" class="btn btn-outline-primary">記事を読む</a>
+                        </div>
+                        <div class="card-footer text-muted">
+                            {{ article.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                まだ記事がありません。上の「記事を生成」ボタンから新しい記事を生成してください。
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
